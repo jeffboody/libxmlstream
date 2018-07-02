@@ -1,5 +1,5 @@
 TARGET   = libxmlstream.a
-CLASS    = xml_log xml_ostream
+CLASS    = xml_log xml_ostream xml_istream
 SOURCE   = $(CLASS:%=%.c)
 OBJECTS  = $(SOURCE:.c=.o)
 HFILES   = $(CLASS:%=%.h)
