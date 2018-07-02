@@ -79,7 +79,7 @@ static void xml_istream_end(void* _self,
 
 	int line = XML_GetCurrentLineNumber(self->parser);
 
-	// skip leading whitespace
+	// trim leading whitespace
 	char* buf = self->content_buf;
 	if(buf)
 	{
@@ -97,6 +97,12 @@ static void xml_istream_end(void* _self,
 			{
 				break;
 			}
+		}
+
+		// pass NULL for empty content
+		if(buf[0] == '\0')
+		{
+			buf = NULL;
 		}
 	}
 
