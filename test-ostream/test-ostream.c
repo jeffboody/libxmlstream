@@ -78,12 +78,26 @@ int main(int argc, char** argv)
 	}
 	xml_ostream_end(os);
 
+	// check for errors
 	#ifdef USE_BUFFER
 		int len = 0;
 		const char* buf = xml_ostream_buffer(os, &len);
-		printf("%s\n", buf);
-		printf("len=%i, strlen=%i", len, (int) strlen(buf));
+		if(buf)
+		{
+			LOGI("len=%i, strlen=%i", len, (int) strlen(buf));
+			printf("%s\n", buf);
+			LOGI("COMPLETE");
+		}
+	#else
+		if(xml_ostream_complete(os))
+		{
+			LOGI("COMPLETE");
+		}
 	#endif
+	else
+	{
+		LOGE("INCOMPLETE");
+	}
 
 	xml_ostream_delete(&os);
 

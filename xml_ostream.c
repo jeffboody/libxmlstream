@@ -42,10 +42,32 @@
 
 // internal state
 #define XML_OSTREAM_STATE_INIT    0
-#define XML_OSTREAM_STATE_TOP     1
+#define XML_OSTREAM_STATE_BODY    1
 #define XML_OSTREAM_STATE_NESTED  2
 #define XML_OSTREAM_STATE_CONTENT 3
 #define XML_OSTREAM_STATE_EOF     4
+
+static void xml_ostream_close(xml_ostream_t* self)
+{
+	assert(self);
+
+	if((self->mode == XML_OSTREAM_MODE_FILE) && self->of.close)
+	{
+		char pname[256];
+		snprintf(pname, 256, "%s.part", self->of.fname);
+
+		fclose(self->of.f);
+		if(self->error)
+		{
+			unlink(pname);
+		}
+		else
+		{
+			rename(pname, self->of.fname);
+		}
+		self->of.close = 0;
+	}
+}
 
 static int xml_ostream_write(xml_ostream_t* self,
                              const char* buf)
@@ -408,28 +430,13 @@ void xml_ostream_delete(xml_ostream_t** _self)
 	xml_ostream_t* self = *_self;
 	if(self)
 	{
-		if(self->mode == XML_OSTREAM_MODE_FILE)
+		if(self->mode == XML_OSTREAM_MODE_BUFFER)
 		{
-			if(self->of.close)
-			{
-				char pname[256];
-				snprintf(pname, 256, "%s.part",
-				         self->of.fname);
-
-				fclose(self->of.f);
-				if(self->error)
-				{
-					unlink(pname);
-				}
-				else
-				{
-					rename(pname, self->of.fname);
-				}
-			}
+			free(self->ob.buffer);
 		}
 		else
 		{
-			free(self->ob.buffer);
+			xml_ostream_close(self);
 		}
 
 		while(self->elem)
@@ -448,6 +455,14 @@ int xml_ostream_begin(xml_ostream_t* self,
 	assert(self);
 	assert(name);
 
+	if(self->state == XML_OSTREAM_STATE_INIT)
+	{
+		if(xml_ostream_write(self, "<?xml version='1.0' encoding='UTF-8'?>") == 0)
+		{
+			return 0;
+		}
+	}
+
 	if(xml_ostream_elemPush(self, name) == 0)
 	{
 		return 0;
@@ -455,17 +470,15 @@ int xml_ostream_begin(xml_ostream_t* self,
 
 	if(self->state == XML_OSTREAM_STATE_INIT)
 	{
-		self->state = XML_OSTREAM_STATE_TOP;
-
-		if(xml_ostream_write(self, "<?xml version='1.0' encoding='UTF-8'?>") &&
-		   xml_ostream_endln(self) &&
+		if(xml_ostream_endln(self) &&
 		   xml_ostream_writef(self, "<%s", name))
 		{
+			self->state = XML_OSTREAM_STATE_BODY;
 			++self->depth;
 			return 1;
 		}
 	}
-	else if(self->state == XML_OSTREAM_STATE_TOP)
+	else if(self->state == XML_OSTREAM_STATE_BODY)
 	{
 		if(xml_ostream_write(self, ">") &&
 		   xml_ostream_endln(self)      &&
@@ -478,12 +491,11 @@ int xml_ostream_begin(xml_ostream_t* self,
 	}
 	else if(self->state == XML_OSTREAM_STATE_NESTED)
 	{
-		self->state = XML_OSTREAM_STATE_TOP;
-
 		if(xml_ostream_endln(self)  &&
 		   xml_ostream_indent(self) &&
 		   xml_ostream_writef(self, "<%s", name))
 		{
+			self->state = XML_OSTREAM_STATE_BODY;
 			++self->depth;
 			return 1;
 		}
@@ -510,14 +522,16 @@ int xml_ostream_end(xml_ostream_t* self)
 		return 0;
 	}
 
-	if(self->state == XML_OSTREAM_STATE_TOP)
+	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
-		self->state = XML_OSTREAM_STATE_NESTED;
-
 		--self->depth;
 		if(self->depth == 0)
 		{
 			self->state = XML_OSTREAM_STATE_EOF;
+		}
+		else
+		{
+			self->state = XML_OSTREAM_STATE_NESTED;
 		}
 
 		if(xml_ostream_write(self, " />"))
@@ -577,8 +591,7 @@ int xml_ostream_attr(xml_ostream_t* self,
 	assert(name);
 	assert(val);
 
-	if((self->state == XML_OSTREAM_STATE_TOP) ||
-	   (self->state == XML_OSTREAM_STATE_NESTED))
+	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
 		char val2[256];
 		xml_ostream_filter(self, val, val2);
@@ -616,7 +629,7 @@ int xml_ostream_content(xml_ostream_t* self,
 	assert(self);
 	assert(content);
 
-	if(self->state == XML_OSTREAM_STATE_TOP)
+	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
 		self->state = XML_OSTREAM_STATE_CONTENT;
 
@@ -663,20 +676,27 @@ const char* xml_ostream_buffer(xml_ostream_t* self,
 	assert(self);
 	assert(len);
 
-	if((self->mode  != XML_OSTREAM_MODE_BUFFER) ||
-	   (self->state != XML_OSTREAM_STATE_EOF)   ||
-	   self->error)
+	if(xml_ostream_complete(self) &&
+	   (self->mode == XML_OSTREAM_MODE_BUFFER))
+	{
+		*len = self->ob.len;
+		return self->ob.buffer;
+	}
+	else
 	{
 		return NULL;
 	}
-
-	*len = self->ob.len;
-	return self->ob.buffer;
 }
 
-int xml_ostream_error(xml_ostream_t* self)
+int xml_ostream_complete(xml_ostream_t* self)
 {
 	assert(self);
 
-	return self->error;
+	if(self->state == XML_OSTREAM_STATE_EOF)
+	{
+		xml_ostream_close(self);
+		return self->error ? 0 : 1;
+	}
+
+	return 0;
 }
