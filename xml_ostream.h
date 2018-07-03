@@ -77,6 +77,7 @@ int            xml_ostream_content(xml_ostream_t* self,
 int            xml_ostream_contentf(xml_ostream_t* self,
                                     const char* fmt, ...);
 const char*    xml_ostream_buffer(xml_ostream_t* self,
+                                  int acquire,
                                   int* len);
 int            xml_ostream_complete(xml_ostream_t* self);
 

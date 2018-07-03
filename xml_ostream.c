@@ -671,6 +671,7 @@ int xml_ostream_contentf(xml_ostream_t* self,
 }
 
 const char* xml_ostream_buffer(xml_ostream_t* self,
+                               int acquire,
                                int* len)
 {
 	assert(self);
@@ -680,7 +681,13 @@ const char* xml_ostream_buffer(xml_ostream_t* self,
 	   (self->mode == XML_OSTREAM_MODE_BUFFER))
 	{
 		*len = self->ob.len;
-		return self->ob.buffer;
+		char* buffer = self->ob.buffer;
+		if(acquire)
+		{
+			self->ob.len    = 0;
+			self->ob.buffer = NULL;
+		}
+		return buffer;
 	}
 	else
 	{

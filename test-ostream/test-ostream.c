@@ -81,12 +81,15 @@ int main(int argc, char** argv)
 	// check for errors
 	#ifdef USE_BUFFER
 		int len = 0;
-		const char* buf = xml_ostream_buffer(os, &len);
+		const char* buf = xml_ostream_buffer(os, 1, &len);
 		if(buf)
 		{
 			LOGI("len=%i, strlen=%i", len, (int) strlen(buf));
 			printf("%s\n", buf);
 			LOGI("COMPLETE");
+
+			// free buffer when acquired
+			free((void*) buf);
 		}
 	#else
 		if(xml_ostream_complete(os))
