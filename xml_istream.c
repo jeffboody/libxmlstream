@@ -232,7 +232,7 @@ int xml_istream_parse(void* priv,
 		LOGE("fseek_end fname=%s", fname);
 		goto fail_fseek_end;
 	}
-	int len = (int) ftell(f);
+	size_t len = ftell(f);
 
 	// rewind to start
 	if(fseek(f, 0, SEEK_SET) == -1)
@@ -258,7 +258,7 @@ int xml_istream_parse(void* priv,
 int xml_istream_parseFile(void* priv,
                           xml_istream_start_fn start_fn,
                           xml_istream_end_fn   end_fn,
-                          FILE* f, int len)
+                          FILE* f, size_t len)
 {
 	// priv may be NULL
 	assert(start_fn);
@@ -324,7 +324,7 @@ int xml_istream_parseBuffer(void* priv,
                             xml_istream_start_fn start_fn,
                             xml_istream_end_fn   end_fn,
                             const char* buffer,
-                            int len)
+                            size_t len)
 {
 	// priv may be NULL
 	assert(start_fn);
@@ -349,8 +349,8 @@ int xml_istream_parseBuffer(void* priv,
 			goto fail_parse;
 		}
 
-		int left  = len - offset;
-		int bytes = (left > 4096) ? 4096 : left;
+		size_t left  = len - offset;
+		int    bytes = (left > 4096) ? 4096 : left;
 		memcpy(buf, &buffer[offset], bytes);
 
 		done = (bytes == 0) ? 1 : 0;

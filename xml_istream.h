@@ -43,11 +43,11 @@ int xml_istream_parse(void* priv,
 int xml_istream_parseFile(void* priv,
                           xml_istream_start_fn start_fn,
                           xml_istream_end_fn   end_fn,
-                          FILE* f, int len);
+                          FILE* f, size_t len);
 int xml_istream_parseBuffer(void* priv,
                             xml_istream_start_fn start_fn,
                             xml_istream_end_fn   end_fn,
                             const char* buffer,
-                            int len);
+                            size_t len);
 
 #endif
