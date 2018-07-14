@@ -298,8 +298,9 @@ int xml_istream_parseFile(void* priv,
 			str[(bytes > 0) ? (bytes - 1) : 0] = '\0';
 
 			enum XML_Error e = XML_GetErrorCode(self->parser);
-			LOGE("XML_ParseBuffer err=%s, bytes=%i, buf=%s",
-			     XML_ErrorString(e), bytes, str);
+			int line = XML_GetCurrentLineNumber(self->parser);
+			LOGE("XML_ParseBuffer err=%s, line=%i, bytes=%i, buf=%s",
+			     XML_ErrorString(e), line, bytes, str);
 			goto fail_parse;
 		}
 		else if(self->error)
@@ -360,8 +361,9 @@ int xml_istream_parseBuffer(void* priv,
 			str[(bytes > 0) ? (bytes - 1) : 0] = '\0';
 
 			enum XML_Error e = XML_GetErrorCode(self->parser);
-			LOGE("XML_ParseBuffer err=%s, bytes=%i, buf=%s",
-			     XML_ErrorString(e), bytes, str);
+			int line = XML_GetCurrentLineNumber(self->parser);
+			LOGE("XML_ParseBuffer err=%s, line=%i, bytes=%i, buf=%s",
+			     XML_ErrorString(e), line, bytes, str);
 			goto fail_parse;
 		}
 		else if(self->error)
