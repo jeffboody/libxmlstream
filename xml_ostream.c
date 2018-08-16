@@ -38,7 +38,8 @@
 
 // internal mode
 #define XML_OSTREAM_MODE_FILE   0
-#define XML_OSTREAM_MODE_BUFFER 1
+#define XML_OSTREAM_MODE_GZFILE 1
+#define XML_OSTREAM_MODE_BUFFER 2
 
 // internal state
 #define XML_OSTREAM_STATE_INIT    0
@@ -51,7 +52,8 @@ static void xml_ostream_close(xml_ostream_t* self)
 {
 	assert(self);
 
-	if((self->mode == XML_OSTREAM_MODE_FILE) && self->of.close)
+	if((self->mode == XML_OSTREAM_MODE_FILE) &&
+	   self->of.close)
 	{
 		char pname[256];
 		snprintf(pname, 256, "%s.part", self->of.fname);
@@ -66,6 +68,23 @@ static void xml_ostream_close(xml_ostream_t* self)
 			rename(pname, self->of.fname);
 		}
 		self->of.close = 0;
+	}
+	else if((self->mode == XML_OSTREAM_MODE_GZFILE) &&
+	        self->oz.close)
+	{
+		char pname[256];
+		snprintf(pname, 256, "%s.part", self->oz.gzname);
+
+		gzclose(self->oz.f);
+		if(self->error)
+		{
+			unlink(pname);
+		}
+		else
+		{
+			rename(pname, self->oz.gzname);
+		}
+		self->oz.close = 0;
 	}
 }
 
@@ -89,6 +108,21 @@ static int xml_ostream_write(xml_ostream_t* self,
 			LOGE("fwrite failed");
 			self->error = 1;
 			return 0;
+		}
+	}
+	else if(self->mode == XML_OSTREAM_MODE_GZFILE)
+	{
+		while(len > 0)
+		{
+			int bytes_written = gzwrite(self->oz.f, (const void*) buf, len);
+			if(bytes_written == 0)
+			{
+				LOGE("gzwrite failed");
+				self->error = 1;
+				return 0;
+			}
+			buf += bytes_written;
+			len -= bytes_written;
 		}
 	}
 	else
@@ -375,6 +409,46 @@ xml_ostream_t* xml_ostream_new(const char* fname)
 
 	// failure
 	fail_fopen:
+		free(self);
+	return NULL;
+}
+
+xml_ostream_t* xml_ostream_newGz(const char* gzname)
+{
+	assert(gzname);
+
+	xml_ostream_t* self = (xml_ostream_t*)
+	                      malloc(sizeof(xml_ostream_t));
+	if(self == NULL)
+	{
+		LOGE("malloc failed");
+		return NULL;
+	}
+
+	char pname[256];
+	snprintf(pname, 256, "%s.part", gzname);
+	snprintf(self->oz.gzname, 256, "%s", gzname);
+
+	gzFile f = gzopen(pname, "wb");
+	if(f == NULL)
+	{
+		LOGE("gzopen %s failed", pname);
+		goto fail_gzopen;
+	}
+
+	self->mode     = XML_OSTREAM_MODE_GZFILE;
+	self->state    = XML_OSTREAM_STATE_INIT;
+	self->error    = 0;
+	self->depth    = 0;
+	self->elem     = NULL;
+	self->oz.f     = f;
+	self->oz.close = 1;
+
+	// success
+	return self;
+
+	// failure
+	fail_gzopen:
 		free(self);
 	return NULL;
 }

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <zlib.h>
 
 #define LOG_TAG "xml"
 #include "xml_log.h"
@@ -205,6 +206,71 @@ static void xml_istream_delete(xml_istream_t** _self)
 	}
 }
 
+static int
+xml_istream_parseGzFile(void* priv,
+                        xml_istream_start_fn start_fn,
+                        xml_istream_end_fn   end_fn,
+                        gzFile f)
+{
+	// priv may be NULL
+	assert(start_fn);
+	assert(end_fn);
+	assert(f);
+
+	xml_istream_t* self = xml_istream_new(priv, start_fn, end_fn);
+	if(self == NULL)
+	{
+		return 0;
+	}
+
+	// parse file
+	int done = 0;
+	while(done == 0)
+	{
+		void* buf = XML_GetBuffer(self->parser, 4096);
+		if(buf == NULL)
+		{
+			LOGE("XML_GetBuffer buf=NULL");
+			goto fail_parse;
+		}
+
+		int bytes = gzread(f, buf, 4096);
+		if((bytes == 0) && (gzeof(f) == 0))
+		{
+			LOGE("gzread failed");
+			goto fail_parse;
+		}
+
+		done = (bytes == 0) ? 1 : 0;
+		if(XML_ParseBuffer(self->parser, bytes, done) == 0)
+		{
+			// make sure str is null terminated
+			char* str = (char*) buf;
+			str[(bytes > 0) ? (bytes - 1) : 0] = '\0';
+
+			enum XML_Error e = XML_GetErrorCode(self->parser);
+			int line = XML_GetCurrentLineNumber(self->parser);
+			LOGE("XML_ParseBuffer err=%s, line=%i, bytes=%i, buf=%s",
+			     XML_ErrorString(e), line, bytes, str);
+			goto fail_parse;
+		}
+		else if(self->error)
+		{
+			goto fail_parse;
+		}
+	}
+
+	xml_istream_delete(&self);
+
+	// succcess
+	return 1;
+
+	// failure
+	fail_parse:
+		xml_istream_delete(&self);
+	return 0;
+}
+
 /***********************************************************
 * public                                                   *
 ***********************************************************/
@@ -252,6 +318,39 @@ int xml_istream_parse(void* priv,
 	fail_fseek_set:
 	fail_fseek_end:
 		fclose(f);
+	return 0;
+}
+
+int xml_istream_parseGz(void* priv,
+                        xml_istream_start_fn start_fn,
+                        xml_istream_end_fn   end_fn,
+                        const char* gzname)
+{
+	// priv may be NULL
+	assert(start_fn);
+	assert(end_fn);
+	assert(gzname);
+
+	gzFile f = gzopen(gzname, "rb");
+	if(f == NULL)
+	{
+		LOGE("gzopen %s failed", gzname);
+		return 0;
+	}
+
+	if(xml_istream_parseGzFile(priv, start_fn, end_fn, f) == 0)
+	{
+		goto fail_parse;
+	}
+
+	gzclose(f);
+
+	// success
+	return 1;
+
+	// failure
+	fail_parse:
+		gzclose(f);
 	return 0;
 }
 

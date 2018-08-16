@@ -40,6 +40,10 @@ int xml_istream_parse(void* priv,
                       xml_istream_start_fn start_fn,
                       xml_istream_end_fn   end_fn,
                       const char* fname);
+int xml_istream_parseGz(void* priv,
+                        xml_istream_start_fn start_fn,
+                        xml_istream_end_fn   end_fn,
+                        const char* gzname);
 int xml_istream_parseFile(void* priv,
                           xml_istream_start_fn start_fn,
                           xml_istream_end_fn   end_fn,

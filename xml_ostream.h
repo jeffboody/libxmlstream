@@ -25,12 +25,7 @@
 #define xml_ostream_H
 
 #include <stdio.h>
-
-typedef struct
-{
-	char* buffer;
-	int   len;
-} xml_ostreamBuffer_t;
+#include <zlib.h>
 
 typedef struct
 {
@@ -38,6 +33,19 @@ typedef struct
 	int   close;
 	char  fname[256];
 } xml_ostreamFile_t;
+
+typedef struct
+{
+	gzFile f;
+	int    close;
+	char   gzname[256];
+} xml_ostreamGzFile_t;
+
+typedef struct
+{
+	char* buffer;
+	int   len;
+} xml_ostreamBuffer_t;
 
 typedef struct xml_ostreamElem_s
 {
@@ -55,11 +63,13 @@ typedef struct
 	union
 	{
 		xml_ostreamFile_t   of;
+		xml_ostreamGzFile_t oz;
 		xml_ostreamBuffer_t ob;
 	};
 } xml_ostream_t;
 
 xml_ostream_t* xml_ostream_new(const char* fname);
+xml_ostream_t* xml_ostream_newGz(const char* gzname);
 xml_ostream_t* xml_ostream_newFile(FILE* f);
 xml_ostream_t* xml_ostream_newBuffer(void);
 void           xml_ostream_delete(xml_ostream_t** _self);
