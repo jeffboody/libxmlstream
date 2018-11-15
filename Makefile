@@ -3,7 +3,7 @@ CLASS    = xml_log xml_ostream xml_istream
 SOURCE   = $(CLASS:%=%.c)
 OBJECTS  = $(SOURCE:.c=.o)
 HFILES   = $(CLASS:%=%.h)
-OPT      = -O2 -Wall
+OPT      = -O2 -Wall -Wno-format-truncation
 CFLAGS   = $(OPT) -I.
 LDFLAGS  = -lm -L/usr/lib
 AR       = ar
