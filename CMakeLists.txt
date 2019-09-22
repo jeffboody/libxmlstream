@@ -14,6 +14,7 @@ add_library(xmlstream
 
 # Linking
 target_link_libraries(xmlstream
+                      expat
 
                       # NDK libraries
                       log)
