@@ -21,14 +21,14 @@
  *
  */
 
-#include "xml_istream.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 #include <zlib.h>
 
 #define LOG_TAG "xml"
-#include "xml_log.h"
+#include "../libcc/cc_log.h"
+#include "../libcc/cc_memory.h"
+#include "xml_istream.h"
 
 /***********************************************************
 * private                                                  *
@@ -55,9 +55,9 @@ static void xml_istream_start(void* _self,
                               const XML_Char* name,
                               const XML_Char** atts)
 {
-	assert(_self);
-	assert(name);
-	assert(atts);
+	ASSERT(_self);
+	ASSERT(name);
+	ASSERT(atts);
 
 	xml_istream_t* self = (xml_istream_t*) _self;
 	xml_istream_start_fn start_fn = self->start_fn;
@@ -72,8 +72,8 @@ static void xml_istream_start(void* _self,
 static void xml_istream_end(void* _self,
                             const XML_Char* name)
 {
-	assert(_self);
-	assert(name);
+	ASSERT(_self);
+	ASSERT(name);
 
 	xml_istream_t* self = (xml_istream_t*) _self;
 	xml_istream_end_fn end_fn = self->end_fn;
@@ -112,7 +112,7 @@ static void xml_istream_end(void* _self,
 		self->error = 1;
 	}
 
-	free(self->content_buf);
+	FREE(self->content_buf);
 	self->content_buf = NULL;
 	self->content_len = 0;
 }
@@ -121,15 +121,15 @@ static void xml_istream_content(void *_self,
                                 const char *content,
                                 int len)
 {
-	assert(_self);
-	assert(content);
+	ASSERT(_self);
+	ASSERT(content);
 
 	xml_istream_t* self = (xml_istream_t*) _self;
 
 	int len2  = len + self->content_len;
 	int len21 = len2 + 1;
 	char* buffer = (char*)
-	               realloc(self->content_buf,
+	               REALLOC(self->content_buf,
 	                       len21*sizeof(char));
 	if(buffer == NULL)
 	{
@@ -151,14 +151,14 @@ xml_istream_new(void* priv,
                 xml_istream_end_fn   end_fn)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
 
 	xml_istream_t* self = (xml_istream_t*)
-	                      malloc(sizeof(xml_istream_t));
+	                      MALLOC(sizeof(xml_istream_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -188,20 +188,20 @@ xml_istream_new(void* priv,
 
 	// failure
 	fail_parser:
-		free(self);
+		FREE(self);
 	return NULL;
 }
 
 static void xml_istream_delete(xml_istream_t** _self)
 {
-	assert(_self);
+	ASSERT(_self);
 
 	xml_istream_t* self = *_self;
 	if(self)
 	{
 		XML_ParserFree(self->parser);
-		free(self->content_buf);
-		free(self);
+		FREE(self->content_buf);
+		FREE(self);
 		*_self = NULL;
 	}
 }
@@ -213,11 +213,12 @@ xml_istream_parseGzFile(void* priv,
                         gzFile f)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
-	assert(f);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
+	ASSERT(f);
 
-	xml_istream_t* self = xml_istream_new(priv, start_fn, end_fn);
+	xml_istream_t* self;
+	self = xml_istream_new(priv, start_fn, end_fn);
 	if(self == NULL)
 	{
 		return 0;
@@ -281,9 +282,9 @@ int xml_istream_parse(void* priv,
                       const char* fname)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
-	assert(fname);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
+	ASSERT(fname);
 
 	FILE* f = fopen(fname, "r");
 	if(f == NULL)
@@ -327,9 +328,9 @@ int xml_istream_parseGz(void* priv,
                         const char* gzname)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
-	assert(gzname);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
+	ASSERT(gzname);
 
 	gzFile f = gzopen(gzname, "rb");
 	if(f == NULL)
@@ -360,11 +361,12 @@ int xml_istream_parseFile(void* priv,
                           FILE* f, size_t len)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
-	assert(f);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
+	ASSERT(f);
 
-	xml_istream_t* self = xml_istream_new(priv, start_fn, end_fn);
+	xml_istream_t* self;
+	self = xml_istream_new(priv, start_fn, end_fn);
 	if(self == NULL)
 	{
 		return 0;
@@ -426,11 +428,12 @@ int xml_istream_parseBuffer(void* priv,
                             size_t len)
 {
 	// priv may be NULL
-	assert(start_fn);
-	assert(end_fn);
-	assert(buffer);
+	ASSERT(start_fn);
+	ASSERT(end_fn);
+	ASSERT(buffer);
 
-	xml_istream_t* self = xml_istream_new(priv, start_fn, end_fn);
+	xml_istream_t* self;
+	self = xml_istream_new(priv, start_fn, end_fn);
 	if(self == NULL)
 	{
 		return 0;

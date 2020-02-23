@@ -9,8 +9,7 @@ add_library(xmlstream
 
             # Source
             xml_ostream.c
-            xml_istream.c
-            xml_log.c)
+            xml_istream.c)
 
 # Linking
 target_link_libraries(xmlstream

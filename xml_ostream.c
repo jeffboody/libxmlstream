@@ -23,14 +23,14 @@
 
 #include "xml_ostream.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
 
 #define LOG_TAG "xml"
-#include "xml_log.h"
+#include "../libcc/cc_log.h"
+#include "../libcc/cc_memory.h"
 
 /***********************************************************
 * private                                                  *
@@ -50,7 +50,7 @@
 
 static void xml_ostream_close(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	if((self->mode == XML_OSTREAM_MODE_FILE) &&
 	   self->of.close)
@@ -91,8 +91,8 @@ static void xml_ostream_close(xml_ostream_t* self)
 static int xml_ostream_write(xml_ostream_t* self,
                              const char* buf)
 {
-	assert(self);
-	assert(buf);
+	ASSERT(self);
+	ASSERT(buf);
 
 	// ignore writes on error
 	if(self->error)
@@ -130,7 +130,7 @@ static int xml_ostream_write(xml_ostream_t* self,
 		int len2  = len + self->ob.len;
 		int len21 = len2 + 1;
 		char* buffer = (char*)
-		               realloc(self->ob.buffer,
+		               REALLOC(self->ob.buffer,
 		                       len21*sizeof(char));
 		if(buffer == NULL)
 		{
@@ -152,8 +152,8 @@ static int xml_ostream_write(xml_ostream_t* self,
 static int xml_ostream_writef(xml_ostream_t* self,
                               const char* fmt, ...)
 {
-	assert(self);
-	assert(fmt);
+	ASSERT(self);
+	ASSERT(fmt);
 
 	char buf[256];
 	va_list argptr;
@@ -166,7 +166,7 @@ static int xml_ostream_writef(xml_ostream_t* self,
 
 static int xml_ostream_indent(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	int i;
 	for(i = 0; i < self->depth; ++i)
@@ -182,7 +182,7 @@ static int xml_ostream_indent(xml_ostream_t* self)
 
 static int xml_ostream_endln(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	return xml_ostream_write(self, "\n");
 }
@@ -191,8 +191,8 @@ static int xml_ostream_filter(xml_ostream_t* self,
                               const char* a,
                               char* b)
 {
-	assert(a);
-	assert(b);
+	ASSERT(a);
+	ASSERT(b);
 
 	// initialize b
 	b[0] = '\0';
@@ -327,14 +327,14 @@ static int xml_ostream_filter(xml_ostream_t* self,
 static int xml_ostream_elemPush(xml_ostream_t* self,
                                 const char* name)
 {
-	assert(self);
-	assert(name);
+	ASSERT(self);
+	ASSERT(name);
 
 	xml_ostreamElem_t* elem = (xml_ostreamElem_t*)
-	                          malloc(sizeof(xml_ostreamElem_t));
+	                          MALLOC(sizeof(xml_ostreamElem_t));
 	if(elem == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		self->error = 1;
 		return 0;
 	}
@@ -347,19 +347,19 @@ static int xml_ostream_elemPush(xml_ostream_t* self,
 
 static void xml_ostream_elemPop(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	if(self->elem)
 	{
 		xml_ostreamElem_t* elem = self->elem;
 		self->elem = self->elem->next;
-		free(elem);
+		FREE(elem);
 	}
 }
 
 static const char* xml_ostream_elemPeek(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	if(self->elem)
 	{
@@ -375,13 +375,13 @@ static const char* xml_ostream_elemPeek(xml_ostream_t* self)
 
 xml_ostream_t* xml_ostream_new(const char* fname)
 {
-	assert(fname);
+	ASSERT(fname);
 
 	xml_ostream_t* self = (xml_ostream_t*)
-	                      malloc(sizeof(xml_ostream_t));
+	                      MALLOC(sizeof(xml_ostream_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -409,19 +409,19 @@ xml_ostream_t* xml_ostream_new(const char* fname)
 
 	// failure
 	fail_fopen:
-		free(self);
+		FREE(self);
 	return NULL;
 }
 
 xml_ostream_t* xml_ostream_newGz(const char* gzname)
 {
-	assert(gzname);
+	ASSERT(gzname);
 
 	xml_ostream_t* self = (xml_ostream_t*)
-	                      malloc(sizeof(xml_ostream_t));
+	                      MALLOC(sizeof(xml_ostream_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -449,19 +449,19 @@ xml_ostream_t* xml_ostream_newGz(const char* gzname)
 
 	// failure
 	fail_gzopen:
-		free(self);
+		FREE(self);
 	return NULL;
 }
 
 xml_ostream_t* xml_ostream_newFile(FILE* f)
 {
-	assert(f);
+	ASSERT(f);
 
 	xml_ostream_t* self = (xml_ostream_t*)
-	                      malloc(sizeof(xml_ostream_t));
+	                      MALLOC(sizeof(xml_ostream_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -479,10 +479,10 @@ xml_ostream_t* xml_ostream_newFile(FILE* f)
 xml_ostream_t* xml_ostream_newBuffer(void)
 {
 	xml_ostream_t* self = (xml_ostream_t*)
-	                      malloc(sizeof(xml_ostream_t));
+	                      MALLOC(sizeof(xml_ostream_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -499,14 +499,14 @@ xml_ostream_t* xml_ostream_newBuffer(void)
 
 void xml_ostream_delete(xml_ostream_t** _self)
 {
-	assert(_self);
+	ASSERT(_self);
 
 	xml_ostream_t* self = *_self;
 	if(self)
 	{
 		if(self->mode == XML_OSTREAM_MODE_BUFFER)
 		{
-			free(self->ob.buffer);
+			FREE(self->ob.buffer);
 		}
 		else
 		{
@@ -518,7 +518,7 @@ void xml_ostream_delete(xml_ostream_t** _self)
 			xml_ostream_elemPop(self);
 		}
 
-		free(self);
+		FREE(self);
 		*_self = NULL;
 	}
 }
@@ -526,8 +526,8 @@ void xml_ostream_delete(xml_ostream_t** _self)
 int xml_ostream_begin(xml_ostream_t* self,
                       const char* name)
 {
-	assert(self);
-	assert(name);
+	ASSERT(self);
+	ASSERT(name);
 
 	if(self->state == XML_OSTREAM_STATE_INIT)
 	{
@@ -586,7 +586,7 @@ int xml_ostream_begin(xml_ostream_t* self,
 
 int xml_ostream_end(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	const char* name = xml_ostream_elemPeek(self);
 	if(name == NULL)
@@ -661,9 +661,9 @@ int xml_ostream_attr(xml_ostream_t* self,
                      const char* name,
                      const char* val)
 {
-	assert(self);
-	assert(name);
-	assert(val);
+	ASSERT(self);
+	ASSERT(name);
+	ASSERT(val);
 
 	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
@@ -684,9 +684,9 @@ int xml_ostream_attrf(xml_ostream_t* self,
                       const char* name,
                       const char* fmt, ...)
 {
-	assert(self);
-	assert(name);
-	assert(fmt);
+	ASSERT(self);
+	ASSERT(name);
+	ASSERT(fmt);
 
 	char val[256];
 	va_list argptr;
@@ -700,8 +700,8 @@ int xml_ostream_attrf(xml_ostream_t* self,
 int xml_ostream_content(xml_ostream_t* self,
                         const char* content)
 {
-	assert(self);
-	assert(content);
+	ASSERT(self);
+	ASSERT(content);
 
 	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
@@ -732,8 +732,8 @@ int xml_ostream_content(xml_ostream_t* self,
 int xml_ostream_contentf(xml_ostream_t* self,
                          const char* fmt, ...)
 {
-	assert(self);
-	assert(fmt);
+	ASSERT(self);
+	ASSERT(fmt);
 
 	char val[256];
 	va_list argptr;
@@ -748,8 +748,8 @@ const char* xml_ostream_buffer(xml_ostream_t* self,
                                int acquire,
                                int* len)
 {
-	assert(self);
-	assert(len);
+	ASSERT(self);
+	ASSERT(len);
 
 	if(xml_ostream_complete(self) &&
 	   (self->mode == XML_OSTREAM_MODE_BUFFER))
@@ -771,7 +771,7 @@ const char* xml_ostream_buffer(xml_ostream_t* self,
 
 int xml_ostream_complete(xml_ostream_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	if(self->state == XML_OSTREAM_STATE_EOF)
 	{

@@ -22,12 +22,11 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include "libxmlstream/xml_ostream.h"
 
 #define LOG_TAG "xml-ostream-test"
-#include "libxmlstream/xml_log.h"
+#include "libcc/cc_log.h"
+#include "libxmlstream/xml_ostream.h"
 
 /***********************************************************
 * public                                                   *

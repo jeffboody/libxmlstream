@@ -5,22 +5,26 @@ OBJECTS  = $(TARGET).o $(CLASSES:%=%.o)
 HFILES   = $(CLASSES:%=%.h)
 OPT      = -O2 -Wall
 CFLAGS   = $(OPT) -I.
-LDFLAGS  = -Llibxmlstream -lxmlstream -lpthread -lm
+LDFLAGS  = -Llibxmlstream -lxmlstream -Llibcc -lcc -lz -lpthread -lm
 CCC      = gcc
 
 all: $(TARGET)
 
-$(TARGET): $(OBJECTS) xmlstream
+$(TARGET): $(OBJECTS) libcc xmlstream
 	$(CCC) $(OPT) $(OBJECTS) -o $@ $(LDFLAGS)
 
-.PHONY: xmlstream
+.PHONY: libcc xmlstream
+
+libcc:
+	$(MAKE) -C libcc
 
 xmlstream:
 	$(MAKE) -C libxmlstream
 
 clean:
 	rm -f $(OBJECTS) *~ \#*\# $(TARGET)
+	$(MAKE) -C libcc clean
 	$(MAKE) -C libxmlstream clean
-	rm libxmlstream
+	rm libcc libxmlstream
 
 $(OBJECTS): $(HFILES)
