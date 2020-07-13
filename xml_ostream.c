@@ -703,19 +703,23 @@ int xml_ostream_content(xml_ostream_t* self,
 	ASSERT(self);
 	ASSERT(content);
 
+	// filter the content
+	char filtered[256];
+	xml_ostream_filter(self, content, filtered);
+
 	if(self->state == XML_OSTREAM_STATE_BODY)
 	{
 		self->state = XML_OSTREAM_STATE_CONTENT;
 
 		if(xml_ostream_write(self, ">") &&
-		   xml_ostream_write(self, content))
+		   xml_ostream_write(self, filtered))
 		{
 			return 1;
 		}
 	}
 	else if(self->state == XML_OSTREAM_STATE_CONTENT)
 	{
-		if(xml_ostream_write(self, content))
+		if(xml_ostream_write(self, filtered))
 		{
 			return 1;
 		}
