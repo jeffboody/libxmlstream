@@ -32,11 +32,12 @@
 * private                                                  *
 ***********************************************************/
 
-static int start_fn(void* priv, int line,
+static int start_fn(void* priv, int line, float progress,
                     const char* name,
                     const char** atts)
 {
-	LOGI("line=%i, name=%s", line, name);
+	LOGI("line=%i, progress=%f, name=%s",
+	     line, progress, name);
 
 	int i = 0;
 	while(atts[i] && atts[i + 1])
@@ -49,11 +50,12 @@ static int start_fn(void* priv, int line,
 	return 1;
 }
 
-static int end_fn(void* priv, int line,
+static int end_fn(void* priv, int line, float progress,
                   const char* name,
                   const char* content)
 {
-	LOGI("line=%i, name=%s", line, name);
+	LOGI("line=%i, progress=%f, name=%s",
+	     line, progress, name);
 
 	if(content)
 	{

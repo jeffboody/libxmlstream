@@ -38,6 +38,8 @@ typedef struct
 {
 	int error;
 
+	float progress;
+
 	// callbacks
 	void* priv;
 	xml_istream_start_fn start_fn;
@@ -63,7 +65,8 @@ static void xml_istream_start(void* _self,
 	xml_istream_start_fn start_fn = self->start_fn;
 
 	int line = XML_GetCurrentLineNumber(self->parser);
-	if((*start_fn)(self->priv, line, name, atts) == 0)
+	if((*start_fn)(self->priv, line, self->progress,
+	               name, atts) == 0)
 	{
 		self->error = 1;
 	}
@@ -107,7 +110,8 @@ static void xml_istream_end(void* _self,
 		}
 	}
 
-	if((*end_fn)(self->priv, line, name, buf) == 0)
+	if((*end_fn)(self->priv, line, self->progress,
+	             name, buf) == 0)
 	{
 		self->error = 1;
 	}
@@ -155,10 +159,10 @@ xml_istream_new(void* priv,
 	ASSERT(end_fn);
 
 	xml_istream_t* self = (xml_istream_t*)
-	                      MALLOC(sizeof(xml_istream_t));
+	                      CALLOC(1, sizeof(xml_istream_t));
 	if(self == NULL)
 	{
-		LOGE("MALLOC failed");
+		LOGE("CALLOC failed");
 		return NULL;
 	}
 
@@ -175,13 +179,10 @@ xml_istream_new(void* priv,
 	XML_SetCharacterDataHandler(parser,
 	                            xml_istream_content);
 
-	self->error       = 0;
-	self->priv        = priv;
-	self->start_fn    = start_fn;
-	self->end_fn      = end_fn;
-	self->content_buf = NULL;
-	self->content_len = 0;
-	self->parser      = parser;
+	self->priv     = priv;
+	self->start_fn = start_fn;
+	self->end_fn   = end_fn;
+	self->parser   = parser;
 
 	// success
 	return self;
@@ -210,12 +211,18 @@ static int
 xml_istream_parseGzFile(void* priv,
                         xml_istream_start_fn start_fn,
                         xml_istream_end_fn   end_fn,
-                        gzFile f)
+                        gzFile f, size_t len)
 {
 	// priv may be NULL
 	ASSERT(start_fn);
 	ASSERT(end_fn);
 	ASSERT(f);
+
+	if(len <= 0)
+	{
+		LOGE("invalid len=%i", (int) len);
+		return 0;
+	}
 
 	xml_istream_t* self;
 	self = xml_istream_new(priv, start_fn, end_fn);
@@ -225,7 +232,9 @@ xml_istream_parseGzFile(void* priv,
 	}
 
 	// parse file
-	int done = 0;
+	int    done  = 0;
+	size_t part  = 0;
+	size_t total = len;
 	while(done == 0)
 	{
 		void* buf = XML_GetBuffer(self->parser, 4096);
@@ -242,7 +251,9 @@ xml_istream_parseGzFile(void* priv,
 			goto fail_parse;
 		}
 
-		done = (bytes == 0) ? 1 : 0;
+		done  = (bytes == 0) ? 1 : 0;
+		part += bytes;
+		self->progress = (float) ((double) part / (double) total);
 		if(XML_ParseBuffer(self->parser, bytes, done) == 0)
 		{
 			// make sure str is null terminated
@@ -332,6 +343,54 @@ int xml_istream_parseGz(void* priv,
 	ASSERT(end_fn);
 	ASSERT(gzname);
 
+	// read the uncompressed file size which is stored in the
+	// last 4 bytes of the compressed file
+	// assumes that the uncompressed file is less than 4GB
+	// otherwise the file size may only be determined by
+	// decompressing the entire file
+	// the len is only used to provide a progress indicator
+	// for the istream parser
+	FILE* tmp = fopen(gzname, "r");
+	if(tmp == NULL)
+	{
+		LOGE("fopen %s failed", gzname);
+		return 0;
+	}
+
+	// seek the uncompressed file size
+	fseek(tmp, (long) 0, SEEK_END);
+	size_t len = ftell(tmp);
+	if(len < 4)
+	{
+		LOGE("invalid len=%i", (int) len);
+		fclose(tmp);
+		return 0;
+	}
+	fseek(tmp, len - 4, SEEK_SET);
+
+	// read the uncompressed file size bytes
+	unsigned char b1;
+	unsigned char b2;
+	unsigned char b3;
+	unsigned char b4;
+	if((fread(&b4, sizeof(char), 1, tmp) != 1) ||
+	   (fread(&b3, sizeof(char), 1, tmp) != 1) ||
+	   (fread(&b2, sizeof(char), 1, tmp) != 1) ||
+	   (fread(&b1, sizeof(char), 1, tmp) != 1))
+	{
+		LOGE("fread failed");
+		fclose(tmp);
+		return 0;
+	}
+	fclose(tmp);
+
+	// decode the uncompressed file size
+	unsigned int u1 = b1;
+	unsigned int u2 = b2;
+	unsigned int u3 = b3;
+	unsigned int u4 = b4;
+	len = (size_t) ((u1 << 24) | (u2 << 16) | (u3 << 8) | u4);
+
 	gzFile f = gzopen(gzname, "rb");
 	if(f == NULL)
 	{
@@ -339,7 +398,8 @@ int xml_istream_parseGz(void* priv,
 		return 0;
 	}
 
-	if(xml_istream_parseGzFile(priv, start_fn, end_fn, f) == 0)
+	if(xml_istream_parseGzFile(priv, start_fn, end_fn, f,
+	                           len) == 0)
 	{
 		goto fail_parse;
 	}
@@ -373,7 +433,9 @@ int xml_istream_parseFile(void* priv,
 	}
 
 	// parse file
-	int done = 0;
+	int    done  = 0;
+	size_t part  = 0;
+	size_t total = len;
 	while(done == 0)
 	{
 		void* buf = XML_GetBuffer(self->parser, 4096);
@@ -390,8 +452,10 @@ int xml_istream_parseFile(void* priv,
 			goto fail_parse;
 		}
 
-		len -= bytes;
-		done = (len == 0) ? 1 : 0;
+		len  -= bytes;
+		done  = (len == 0) ? 1 : 0;
+		part += bytes;
+		self->progress = (float) ((double) part / (double) total);
 		if(XML_ParseBuffer(self->parser, bytes, done) == 0)
 		{
 			// make sure str is null terminated
@@ -440,8 +504,10 @@ int xml_istream_parseBuffer(void* priv,
 	}
 
 	// parse buffer
-	int done   = 0;
-	int offset = 0;
+	int    done   = 0;
+	int    offset = 0;
+	size_t part   = 0;
+	size_t total  = len;
 	while(done == 0)
 	{
 		void* buf = XML_GetBuffer(self->parser, 4096);
@@ -455,7 +521,9 @@ int xml_istream_parseBuffer(void* priv,
 		int    bytes = (left > 4096) ? 4096 : left;
 		memcpy(buf, &buffer[offset], bytes);
 
-		done = (bytes == 0) ? 1 : 0;
+		done  = (bytes == 0) ? 1 : 0;
+		part += bytes;
+		self->progress = (float) ((double) part / (double) total);
 		if(XML_ParseBuffer(self->parser, bytes, done) == 0)
 		{
 			// make sure str is null terminated

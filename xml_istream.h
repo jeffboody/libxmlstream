@@ -29,10 +29,12 @@
 
 typedef int (*xml_istream_start_fn)(void* priv,
                                     int line,
+                                    float progress,
                                     const char* name,
                                     const char** atts);
 typedef int (*xml_istream_end_fn)(void* priv,
                                   int line,
+                                  float progress,
                                   const char* name,
                                   const char* content);
 
